@@ -1,3 +1,41 @@
+# Bambu Studio for Debian 13 GNOME
+
+This repository contains my Debian 13 AMD64 build of **Bambu Studio 2.8.2.61**, with a small set of Linux/GNOME changes that I use on my own Debian GNOME system.
+
+<img width="320" height="180" alt="Bambu_Studio_2026-09-04_17-13-11" src="https://github.com/user-attachments/assets/83151333-c8f9-4dae-bdc9-72f3c6b75946" /> <img width="320" height="180" alt="Bambu_Studio_2026-09-04_17-13-46" src="https://github.com/user-attachments/assets/84bec2af-73bc-4c9c-bf71-e0754d17de29" />
+
+The main goal is to make Bambu Studio feel more like a normal native GNOME application under Wayland. I fixed several window-management issues, including moving and resizing the window, maximize/restore behaviour, the startup splash screen and some of the behaviour while Bambu Studio is starting.
+
+I also changed the Linux startup so that OpenGL initialization is delayed until the 3D view is actually needed. Together, these changes make startup and general window behaviour noticeably better on my Debian 13 GNOME system.
+
+## Why a native Debian package?
+
+There is already a Flatpak version of Bambu Studio, but for my own system I prefer a normal Debian `.deb` package.
+
+The goal of this build is to use the Debian system directly as much as practical, including its GTK/GNOME environment, graphics stack, drivers and other system components, instead of running Bambu Studio through the additional Flatpak runtime and sandbox layer.
+
+For me this gives better integration with Debian and GNOME, and makes the application behave more like software installed directly from the operating system.
+
+This package includes:
+
+- Debian 13 AMD64 integration
+- GNOME Wayland window fixes
+- Native window moving and edge resizing
+- Improved maximize and restore behaviour
+- Improved startup splash behaviour
+- Deferred OpenGL initialization during startup
+- GNOME Software / AppStream metadata
+- All Bambu Studio language resources
+
+The optional proprietary **Bambu Network Plugin is not included**.
+
+This is an independent Debian build based on the official open-source Bambu Studio project and is not an official Bambu Lab Debian package.
+
+---
+
+
+
+
 ![image](https://user-images.githubusercontent.com/106916061/179006347-497d24c0-9bd6-45b7-8c49-d5cc8ecfe5d7.png)
 # BambuStudio
 Bambu Studio is a cutting-edge, feature-rich slicing software.  
