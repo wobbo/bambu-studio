@@ -1,0 +1,264 @@
+--- a/src/gtk/toplevel.cpp
++++ b/src/gtk/toplevel.cpp
+@@ -92,6 +92,212 @@
+ }
+ #endif
+ 
++#ifdef __WXGTK3__
++#ifndef __WXGTK4__
++
++struct BambuResizeZones
++{
++    GdkWindow* zone[8] = {};
++};
++
++static const GdkWindowEdge bambu_resize_edges[8] =
++{
++    GDK_WINDOW_EDGE_NORTH_WEST,
++    GDK_WINDOW_EDGE_NORTH,
++    GDK_WINDOW_EDGE_NORTH_EAST,
++    GDK_WINDOW_EDGE_EAST,
++    GDK_WINDOW_EDGE_SOUTH_EAST,
++    GDK_WINDOW_EDGE_SOUTH,
++    GDK_WINDOW_EDGE_SOUTH_WEST,
++    GDK_WINDOW_EDGE_WEST
++};
++
++static const char* bambu_resize_cursors[8] =
++{
++    "nw-resize",
++    "n-resize",
++    "ne-resize",
++    "e-resize",
++    "se-resize",
++    "s-resize",
++    "sw-resize",
++    "w-resize"
++};
++
++static void wxgtk_bambu_resize_zones_update(GtkWidget* widget)
++{
++    auto* zones = static_cast<BambuResizeZones*>(
++        g_object_get_data(G_OBJECT(widget), "bambu-resize-zones"));
++
++    if (!zones)
++        return;
++
++    GtkAllocation a;
++    gtk_widget_get_allocation(widget, &a);
++
++    const int g = 8;
++    const int w = a.width;
++    const int h = a.height;
++
++    if (w <= 2 * g || h <= 2 * g)
++        return;
++
++    const int rects[8][4] =
++    {
++        {0,       0,       g,         g},
++        {g,       0,       w - 2*g,   g},
++        {w - g,   0,       g,         g},
++        {w - g,   g,       g,         h - 2*g},
++        {w - g,   h - g,   g,         g},
++        {g,       h - g,   w - 2*g,   g},
++        {0,       h - g,   g,         g},
++        {0,       g,       g,         h - 2*g}
++    };
++
++    for (int i = 0; i < 8; ++i)
++    {
++        if (!zones->zone[i])
++            continue;
++
++        gdk_window_move_resize(
++            zones->zone[i],
++            rects[i][0],
++            rects[i][1],
++            rects[i][2],
++            rects[i][3]);
++
++        gdk_window_raise(zones->zone[i]);
++    }
++}
++
++static void wxgtk_bambu_resize_zones_destroy(gpointer data)
++{
++    auto* zones = static_cast<BambuResizeZones*>(data);
++
++    if (!zones)
++        return;
++
++    for (int i = 0; i < 8; ++i)
++    {
++        if (!zones->zone[i])
++            continue;
++
++        gdk_window_set_user_data(zones->zone[i], NULL);
++
++        if (!gdk_window_is_destroyed(zones->zone[i]))
++            gdk_window_destroy(zones->zone[i]);
++
++        g_object_unref(zones->zone[i]);
++    }
++
++    delete zones;
++}
++
++static void wxgtk_bambu_resize_zones_create(GtkWidget* widget)
++{
++    if (g_object_get_data(G_OBJECT(widget), "bambu-resize-zones"))
++        return;
++
++    GdkWindow* parent = gtk_widget_get_window(widget);
++
++    if (!parent)
++        return;
++
++    auto* zones = new BambuResizeZones();
++
++    for (int i = 0; i < 8; ++i)
++    {
++        GdkWindowAttr attr = {};
++        attr.window_type = GDK_WINDOW_CHILD;
++        attr.wclass      = GDK_INPUT_ONLY;
++        attr.x           = 0;
++        attr.y           = 0;
++        attr.width       = 1;
++        attr.height      = 1;
++        attr.event_mask  =
++            GDK_BUTTON_PRESS_MASK |
++            GDK_ENTER_NOTIFY_MASK |
++            GDK_LEAVE_NOTIFY_MASK;
++
++        zones->zone[i] = gdk_window_new(
++            parent,
++            &attr,
++            GDK_WA_X | GDK_WA_Y);
++
++        gdk_window_set_user_data(zones->zone[i], widget);
++
++        g_object_set_data(
++            G_OBJECT(zones->zone[i]),
++            "bambu-resize-edge",
++            GINT_TO_POINTER((int)bambu_resize_edges[i] + 1));
++
++        GdkCursor* cursor = gdk_cursor_new_from_name(
++            gtk_widget_get_display(widget),
++            bambu_resize_cursors[i]);
++
++        if (cursor)
++        {
++            gdk_window_set_cursor(zones->zone[i], cursor);
++            g_object_unref(cursor);
++        }
++
++        gdk_window_show(zones->zone[i]);
++    }
++
++    g_object_set_data_full(
++        G_OBJECT(widget),
++        "bambu-resize-zones",
++        zones,
++        wxgtk_bambu_resize_zones_destroy);
++
++    wxgtk_bambu_resize_zones_update(widget);
++}
++
++static void wxgtk_bambu_resize_realize(GtkWidget* widget, gpointer)
++{
++    wxgtk_bambu_resize_zones_create(widget);
++}
++
++static void wxgtk_bambu_resize_size_allocate(
++    GtkWidget* widget,
++    GtkAllocation*,
++    gpointer)
++{
++    wxgtk_bambu_resize_zones_update(widget);
++}
++
++static gboolean wxgtk_bambu_resize_button(
++    GtkWidget* widget,
++    GdkEventButton* event,
++    gpointer)
++{
++    if (event->button != 1 || !event->window)
++        return FALSE;
++
++    gpointer value = g_object_get_data(
++        G_OBJECT(event->window),
++        "bambu-resize-edge");
++
++    if (!value)
++        return FALSE;
++
++    GdkWindowEdge edge = static_cast<GdkWindowEdge>(
++        GPOINTER_TO_INT(value) - 1);
++
++    gtk_window_begin_resize_drag(
++        GTK_WINDOW(widget),
++        edge,
++        event->button,
++        (int)event->x_root,
++        (int)event->y_root,
++        event->time);
++
++    return TRUE;
++}
++
++#endif
++#endif
++
+ //-----------------------------------------------------------------------------
+ // RequestUserAttention related functions
+ //-----------------------------------------------------------------------------
+@@ -817,7 +1023,8 @@
+             strcmp("GdkWaylandDisplay", displayTypeName) == 0 &&
+             gtk_check_version(3,10,0) == NULL)
+         {
+-            gtk_window_set_titlebar(GTK_WINDOW(m_widget), gtk_header_bar_new());
++            if (name != wxString("mainframe"))
++                gtk_window_set_titlebar(GTK_WINDOW(m_widget), gtk_header_bar_new());
+         }
+ #endif
+ 
+@@ -837,6 +1044,38 @@
+         }
+     }
+ 
++#ifdef __WXGTK3__
++    if (name == wxString("mainframe"))
++    {
++        m_gdkDecor = 0;
++        gtk_window_set_titlebar(GTK_WINDOW(m_widget), NULL);
++        gtk_window_set_decorated(GTK_WINDOW(m_widget), false);
++
++#ifndef __WXGTK4__
++        g_signal_connect(
++            m_widget,
++            "realize",
++            G_CALLBACK(wxgtk_bambu_resize_realize),
++            NULL);
++
++        g_signal_connect(
++            m_widget,
++            "size-allocate",
++            G_CALLBACK(wxgtk_bambu_resize_size_allocate),
++            NULL);
++
++        g_signal_connect(
++            m_widget,
++            "button-press-event",
++            G_CALLBACK(wxgtk_bambu_resize_button),
++            NULL);
++
++        if (gtk_widget_get_realized(m_widget))
++            wxgtk_bambu_resize_zones_create(m_widget);
++#endif
++    }
++#endif
++
+     m_decorSize = GetCachedDecorSize();
+     int w, h;
+     GTKDoGetSize(&w, &h);

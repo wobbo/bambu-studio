@@ -12,6 +12,10 @@
 #include "PartPlate.hpp"
 #include "ReleaseNote.hpp"
 
+#ifdef __WXGTK__
+#include <gtk/gtk.h>
+#endif
+
 #include <boost/log/trivial.hpp>
 
 #define TOPBAR_ICON_SIZE  18
@@ -569,7 +573,7 @@ void BBLTopbar::OnIconize(wxAuiToolBarEvent& event)
 void BBLTopbar::OnFullScreen(wxAuiToolBarEvent& event)
 {
     if (m_frame->IsMaximized()) {
-        m_frame->Restore();
+        m_frame->Maximize(false);
     }
     else {
         wxDisplay display(this);
@@ -669,6 +673,27 @@ void BBLTopbar::OnMouseLeftDown(wxMouseEvent& event)
     if (FindToolByCurrentPosition() == NULL
         || this->FindToolByCurrentPosition() == m_title_item)
     {
+#ifdef __WXGTK__
+        GdkEvent* gdk_event = gtk_get_current_event();
+
+        if (gdk_event && gdk_event->type == GDK_BUTTON_PRESS) {
+            GdkEventButton* button = reinterpret_cast<GdkEventButton*>(gdk_event);
+
+            gtk_window_begin_move_drag(
+                GTK_WINDOW(m_frame->GetHandle()),
+                button->button,
+                int(button->x_root),
+                int(button->y_root),
+                button->time);
+
+            gdk_event_free(gdk_event);
+            return;
+        }
+
+        if (gdk_event)
+            gdk_event_free(gdk_event);
+#endif
+
         CaptureMouse();
 #ifdef __WXMSW__
         ReleaseMouse();

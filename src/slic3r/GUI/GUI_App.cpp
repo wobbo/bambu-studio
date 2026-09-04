@@ -297,6 +297,10 @@ public:
 #endif // !__APPLE__
         )
     {
+        // wxSplashScreen shows itself in its base constructor.
+        // Hide it until Bambu has finished preparing the real splash.
+        Hide();
+
         int init_dpi = get_dpi_for_window(this);
         this->SetPosition(pos);
         this->CenterOnScreen();
@@ -319,6 +323,12 @@ public:
         // draw logo and constant info text
         Decorate(m_main_bitmap);
         wxGetApp().UpdateFrameDarkUI(this);
+
+        // Make sure GTK's very first paint already has the finished splash.
+        m_window->SetBitmap(m_main_bitmap);
+
+        // Everything is now positioned and drawn. Only now expose it to GNOME.
+        Show(true);
     }
 
     void SetText(const wxString& text)
@@ -1207,6 +1217,7 @@ void GUI_App::post_init()
         slow_bootup = true;
         BOOST_LOG_TRIVIAL(info) << __FUNCTION__ << ", slow bootup, won't render gl here.";
     }
+#ifndef __linux__
     if (!switch_to_3d) {
         BOOST_LOG_TRIVIAL(info) << __FUNCTION__ << ", begin load_gl_resources";
         mainframe->Freeze();
@@ -1247,6 +1258,10 @@ void GUI_App::post_init()
         mainframe->Thaw();
         BOOST_LOG_TRIVIAL(info) << __FUNCTION__ << ", end load_gl_resources";
     }
+#else
+    if (!switch_to_3d)
+        BOOST_LOG_TRIVIAL(info) << __FUNCTION__ << ", Linux: defer OpenGL initialization until the 3D view is opened";
+#endif
     plater_->trigger_restore_project(1);
     //#endif
 
@@ -3286,10 +3301,17 @@ bool GUI_App::on_init_inner()
         BOOST_LOG_TRIVIAL(info) << "begin to show the splash screen...";
         //BBS use BBL splashScreen
         scrn = new BBLSplashScreen(bmp, wxSPLASH_CENTRE_ON_SCREEN, 0, splashscreen_pos);
-#ifndef __linux__
+
+        // Process pending paint events so the splash is drawn immediately.
         wxYield();
-#endif
+        scrn->Raise();
+        scrn->Update();
+
         scrn->SetText(_L("Loading configuration")+ dots);
+
+        // Force the first loading text to become visible before startup continues.
+        scrn->Refresh();
+        scrn->Update();
     }
 
     BOOST_LOG_TRIVIAL(info) << "loading systen presets...";
@@ -3445,6 +3467,10 @@ bool GUI_App::on_init_inner()
             // installation of a compatible system preset, thus nullifying the system preset substitutions.
             std::string errors_cummulative;
             std::tie(init_params->preset_substitutions, errors_cummulative) = preset_bundle->load_presets(*app_config, ForwardCompatibilitySubstitutionRule::EnableSystemSilent);
+
+            // Give GTK/Wayland a chance to answer GNOME during startup.
+            wxYield();
+
             if (!errors_cummulative.empty())
                 show_error(nullptr, errors_cummulative);
         }
