@@ -2,6 +2,9 @@
 
 This repository contains my Debian 13 AMD64 build of **Bambu Studio 2.8.2.61**, with a small set of Linux/GNOME changes that I use on my own Debian GNOME system.
 
+Download: [bambu-studio_2.8.2.61-2_amd64.deb
+](https://github.com/wobbo/bambu-studio/releases/download/v2.8.2.61-2/bambu-studio_2.8.2.61-2_amd64.deb)
+
 <img width="320" height="180" alt="Bambu_Studio_2026-09-04_17-13-11" src="https://github.com/user-attachments/assets/83151333-c8f9-4dae-bdc9-72f3c6b75946" /> <img width="320" height="180" alt="Bambu_Studio_2026-09-04_17-13-46" src="https://github.com/user-attachments/assets/84bec2af-73bc-4c9c-bf71-e0754d17de29" />
 
 The main goal is to make Bambu Studio feel more like a normal native GNOME application under Wayland. I fixed several window-management issues, including moving and resizing the window, maximize/restore behaviour, the startup splash screen and some of the behaviour while Bambu Studio is starting.
