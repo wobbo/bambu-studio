@@ -2,7 +2,7 @@
 Name=BambuStudio
 GenericName=3D Printing Software
 Icon=BambuStudio
-Exec=bambu-studio %U
+Exec=env WEBKIT_DISABLE_DMABUF_RENDERER=1 bambu-studio %U
 Terminal=false
 Type=Application
 MimeType=model/stl;model/3mf;application/vnd.ms-3mfdocument;application/prs.wavefront-obj;application/x-amf;x-scheme-handler/bambustudio;model/step;
